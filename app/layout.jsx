@@ -4,6 +4,9 @@ export const metadata = {
   title: "VaaniRAG — Voice-Enabled RAG",
   description:
     "Speak your question, get a grounded answer retrieved from real passages — end to end in under 200ms.",
+  icons: {
+    icon: "/vaani.png",
+  },
 };
 
 export default function RootLayout({ children }) {

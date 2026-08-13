@@ -10,46 +10,37 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        brand: {
-          50: '#f0fdfa',
-          100: '#ccfbf1',
-          200: '#99f6e4',
-          300: '#5eead4',
-          400: '#2dd4bf',
-          500: '#14b8a6',
-          600: '#0d9488',
-          700: '#0f766e',
-          800: '#115e59',
-          900: '#134e4a',
-          950: '#042f2e',
+        /* CSS-variable driven tokens (used across app) */
+        background:          'hsl(var(--background))',
+        'surface-1':         'hsl(var(--surface-1))',
+        'surface-2':         'hsl(var(--surface-2))',
+        'surface-3':         'hsl(var(--surface-3))',
+        border:              'hsl(var(--border))',
+        foreground:          'hsl(var(--foreground))',
+        'muted-foreground':  'hsl(var(--muted-foreground))',
+        accent: {
+          DEFAULT:    'hsl(var(--accent))',
+          2:          'hsl(var(--accent-2))',
+          foreground: 'hsl(var(--accent-foreground))',
         },
-        surface: {
-          dark: '#090d16',
-          panel: '#111827',
-          card: '#1f293d',
-          border: 'rgba(255, 255, 255, 0.08)',
-        },
-        voice: {
-          glow: '#38bdf8',
-          pulse: '#818cf8',
-          accent: '#34d399',
-        }
+        success: 'hsl(var(--success))',
+        warning: 'hsl(var(--warning))',
+        danger:  'hsl(var(--danger))',
       },
       fontFamily: {
-        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
-        display: ['var(--font-outfit)', 'system-ui', 'sans-serif'],
+        sans:    ['Inter', 'system-ui', 'sans-serif'],
+        display: ['Inter', 'system-ui', 'sans-serif'],
+        mono:    ['ui-monospace', 'Cascadia Code', 'Fira Code', 'monospace'],
       },
-      animation: {
-        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'sound-wave': 'wave 1.2s ease-in-out infinite alternate',
+      borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
       },
-      keyframes: {
-        wave: {
-          '0%': { height: '20%' },
-          '100%': { height: '100%' },
-        }
-      }
+      fontSize: {
+        '2xs': ['10px', '14px'],
+      },
     },
   },
   plugins: [],
-}
+};

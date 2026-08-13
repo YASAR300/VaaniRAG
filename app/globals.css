@@ -3,12 +3,103 @@
 @tailwind utilities;
 
 :root {
-  /* Design tokens — populated in Phase 2 */
-  --background: ;
-  --foreground: ;
-  --accent: ;
-  --accent-foreground: ;
-  --muted: ;
-  --border: ;
-  --radius: ;
+  /* Linear-exact dark palette */
+  --background: 0 0% 4%;          /* #0a0a0a */
+  --surface-1: 0 0% 7%;           /* #111111 */
+  --surface-2: 0 0% 10%;          /* #1a1a1a */
+  --surface-3: 0 0% 13%;          /* #222222 */
+  --border: 0 0% 14%;             /* #242424 */
+
+  /* Text */
+  --foreground: 0 0% 98%;         /* #fafafa */
+  --muted-foreground: 0 0% 53%;   /* #878787 */
+
+  /* Brand accent – kept for app pages, not used in landing glows */
+  --accent: 262 83% 66%;          /* #8b5cf6 violet */
+  --accent-2: 189 94% 55%;        /* #06b6d4 cyan */
+  --accent-foreground: 0 0% 100%;
+
+  /* Semantic */
+  --success: 142 71% 45%;
+  --warning: 38 92% 50%;
+  --danger: 0 84% 60%;
+
+  --radius: 0.625rem;
+}
+
+@layer base {
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: hsl(var(--background)); }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(0 0% 25%); }
+
+/* Linear-style hero grid background */
+.linear-hero-grid {
+  background-image:
+    linear-gradient(to bottom, transparent 50%, hsl(var(--background)) 100%),
+    linear-gradient(hsl(var(--border) / 0.6) 1px, transparent 1px),
+    linear-gradient(to right, hsl(var(--border) / 0.6) 1px, transparent 1px);
+  background-size: 100% 100%, 48px 48px, 48px 48px;
+}
+
+/* Code panel base */
+.code-panel {
+  background-color: hsl(var(--surface-1));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  overflow: hidden;
+  font-family: 'Geist Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+}
+
+/* Glass only for the app (not landing) */
+.glass-panel {
+  background-color: hsl(var(--surface-1) / 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid hsl(var(--border));
+}
+
+/* Animate shimmer (for skeleton loaders) */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--surface-2)) 25%,
+    hsl(var(--surface-3)) 50%,
+    hsl(var(--surface-2)) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Fade-up entrance */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: fadeUp 0.5s ease forwards;
+}
+
+/* Subtle blink for live indicator */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+.animate-blink {
+  animation: blink 1.4s ease-in-out infinite;
 }
