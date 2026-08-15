@@ -1,14 +1,14 @@
 {
-  "timestamp": "2026-08-15T21:18:46.976Z",
+  "timestamp": "2026-08-16T03:12:47Z",
+  "qdrantCloudUrl": "https://bebc4e6f-403a-4f0e-a560-e1d88f71bad8.sa-east-1-0.aws.cloud.qdrant.io:6333",
   "embeddingModel": "BAAI/bge-m3",
   "embeddingDimension": 1024,
   "clusterStorage": {
     "maxBudgetBytes": 4294967296,
     "maxBudgetFormatted": "4.0 GB",
-    "totalEstimatedUsageBytes": 412393800,
-    "totalEstimatedUsageFormatted": "393.3 MB (0.384 GB)",
-    "usagePercentageOfBudget": 9.6,
-    "safetyThresholdBytes": 3865470566.4
+    "totalVectorsIndexed": 53950,
+    "estimatedUsageMb": 410.02,
+    "usagePercentageOfBudget": 9.55
   },
   "stoppedEarly": false,
   "stopReason": null,
@@ -26,10 +26,8 @@
       "totalChunks": 12964,
       "embeddingDimension": 1024,
       "embeddingModel": "BAAI/bge-m3",
-      "embeddingTimeMs": 843,
-      "indexingTimeMs": 0,
-      "totalTimeMs": 2186,
-      "qdrantLiveSync": false,
+      "totalTimeMs": 210667,
+      "qdrantLiveSync": true,
       "byLanguage": {
         "as": 996,
         "bn": 996,
@@ -44,8 +42,7 @@
         "ta": 999,
         "te": 996,
         "ur": 999
-      },
-      "avgTokensPerChunk": 109
+      }
     },
     "fixed": {
       "strategy": "fixed",
@@ -53,10 +50,8 @@
       "totalChunks": 12968,
       "embeddingDimension": 1024,
       "embeddingModel": "BAAI/bge-m3",
-      "embeddingTimeMs": 568,
-      "indexingTimeMs": 0,
-      "totalTimeMs": 1438,
-      "qdrantLiveSync": false,
+      "totalTimeMs": 94395,
+      "qdrantLiveSync": true,
       "byLanguage": {
         "as": 996,
         "bn": 996,
@@ -71,8 +66,7 @@
         "ta": 1001,
         "te": 996,
         "ur": 999
-      },
-      "avgTokensPerChunk": 109
+      }
     },
     "semantic": {
       "strategy": "semantic",
@@ -80,10 +74,8 @@
       "totalChunks": 13890,
       "embeddingDimension": 1024,
       "embeddingModel": "BAAI/bge-m3",
-      "embeddingTimeMs": 526,
-      "indexingTimeMs": 0,
-      "totalTimeMs": 1427,
-      "qdrantLiveSync": false,
+      "totalTimeMs": 92933,
+      "qdrantLiveSync": true,
       "byLanguage": {
         "as": 1050,
         "bn": 1054,
@@ -98,8 +90,7 @@
         "ta": 1092,
         "te": 1069,
         "ur": 1066
-      },
-      "avgTokensPerChunk": 102
+      }
     },
     "hierarchical": {
       "strategy": "hierarchical",
@@ -107,10 +98,8 @@
       "totalChunks": 14128,
       "embeddingDimension": 1024,
       "embeddingModel": "BAAI/bge-m3",
-      "embeddingTimeMs": 528,
-      "indexingTimeMs": 0,
-      "totalTimeMs": 1446,
-      "qdrantLiveSync": false,
+      "totalTimeMs": 102124,
+      "qdrantLiveSync": true,
       "byLanguage": {
         "as": 1066,
         "bn": 1068,
@@ -125,8 +114,7 @@
         "ta": 1155,
         "te": 1086,
         "ur": 1083
-      },
-      "avgTokensPerChunk": 100
+      }
     }
   }
 }

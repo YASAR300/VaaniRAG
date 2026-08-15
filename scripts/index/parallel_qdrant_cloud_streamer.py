@@ -154,7 +154,7 @@ def main():
     print("  ALL 4 STRATEGIES SUCCESSFULLY INGESTED INTO QDRANT CLOUD", flush=True)
     print("=" * 82, flush=True)
     for s, r in strategy_reports.items():
-        print(f"• {r['collectionName'].padEnd(22)}: {r['totalChunks']:,} vectors in {r['totalTimeMs']}ms", flush=True)
+        print(f"• {r['collectionName'].ljust(22)}: {r['totalChunks']:,} vectors in {r['totalTimeMs']}ms", flush=True)
     print(f"\nTotal Vectors in Qdrant Cloud: {total_all_points:,}", flush=True)
     print(f"Report saved to: {REPORT_FILE}", flush=True)
     print("=" * 82, flush=True)
