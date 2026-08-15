@@ -155,7 +155,7 @@ export function VoiceInput({
 
     recorder.onstop = async () => {
       const durationMs = Date.now() - startedAtRef.current;
-      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+      const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
       cleanup();
 
       // POST to /api/transcribe (server-side Sarvam call)
