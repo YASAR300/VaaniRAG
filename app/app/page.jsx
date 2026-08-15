@@ -19,256 +19,6 @@ import {
 } from 'lucide-react';
 import { VoiceInput } from '@/components/ui/voice-input';
 
-/* ── Inline Waveform for live recording visualization (Monochrome White) ──── */
-function InlineWaveform({ analyserRef, maxAmplitudeSeenRef }) {
-  const canvasRef = useRef(null);
-  const rafRef    = useRef(null);
-  const BAR_COUNT = 36;
-  const FFT       = 256;
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const dataArray = new Uint8Array(FFT / 2);
-    const bucketSize = Math.floor(FFT / 2 / BAR_COUNT);
-
-    const draw = () => {
-      const analyser = analyserRef.current;
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-      canvas.width = w;
-      canvas.height = h;
-
-      if (!analyser) {
-        rafRef.current = requestAnimationFrame(draw);
-        return;
-      }
-
-      analyser.getByteFrequencyData(dataArray);
-      for (let i = 0; i < dataArray.length; i++) {
-        if (dataArray[i] > maxAmplitudeSeenRef.current) {
-          maxAmplitudeSeenRef.current = dataArray[i];
-        }
-      }
-
-      ctx.clearRect(0, 0, w, h);
-      const barW = Math.max(2, (w / BAR_COUNT) - 1.5);
-      const gap  = w / BAR_COUNT - barW;
-
-      for (let i = 0; i < BAR_COUNT; i++) {
-        let sum = 0;
-        for (let j = 0; j < bucketSize; j++) {
-          sum += dataArray[i * bucketSize + j] ?? 0;
-        }
-        const norm = (sum / bucketSize) / 255;
-        const barH = Math.max(3, norm * (h - 4));
-        const x = i * (barW + gap);
-        const y = (h - barH) / 2;
-        ctx.fillStyle = `rgba(255, 255, 255, ${0.35 + norm * 0.65})`;
-        ctx.beginPath();
-        ctx.roundRect(x, y, barW, barH, 2);
-        ctx.fill();
-      }
-      rafRef.current = requestAnimationFrame(draw);
-    };
-
-    rafRef.current = requestAnimationFrame(draw);
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [analyserRef, maxAmplitudeSeenRef]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden="true"
-      style={{ width: '100%', height: '100%', display: 'block' }}
-    />
-  );
-}
-
-/* ── RecorderBar component (Black & White Theme) ────────────────────────── */
-function RecorderBar({ onRecordingComplete, onError, maxDurationMs = 30000, onExpandChange, startRef }) {
-  const [status, setStatus]   = useState('idle');
-  const [elapsed, setElapsed] = useState(0);
-  const [errType, setErrType] = useState(null);
-
-  const streamRef    = useRef(null);
-  const recorderRef  = useRef(null);
-  const ctxRef       = useRef(null);
-  const analyserRef  = useRef(null);
-  const chunksRef    = useRef([]);
-  const startedAtRef = useRef(0);
-  const timerRef     = useRef(null);
-  const maxAmpRef    = useRef(0);
-
-  const cleanup = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
-    if (ctxRef.current) {
-      ctxRef.current.close().catch(() => {});
-      ctxRef.current = null;
-    }
-    analyserRef.current = null;
-    recorderRef.current = null;
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => () => cleanup(), [cleanup]);
-
-  useEffect(() => {
-    onExpandChange?.(['requesting', 'recording', 'processing'].includes(status));
-  }, [status, onExpandChange]);
-
-  const start = useCallback(async () => {
-    maxAmpRef.current = 0;
-    chunksRef.current = [];
-    setErrType(null);
-    setStatus('requesting');
-    let stream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (err) {
-      const n = err?.name ?? '';
-      const t = (n === 'NotAllowedError' || n === 'PermissionDeniedError') ? 'permission-denied'
-              : (n === 'NotFoundError'   || n === 'DevicesNotFoundError')   ? 'device-unavailable'
-              : 'unknown';
-      setStatus('error');
-      setErrType(t);
-      onError?.({ type: t, message: err?.message });
-      return;
-    }
-
-    const ctx = new AudioContext();
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 256;
-    analyser.smoothingTimeConstant = 0.7;
-    ctx.createMediaStreamSource(stream).connect(analyser);
-
-    streamRef.current   = stream;
-    ctxRef.current      = ctx;
-    analyserRef.current = analyser;
-
-    const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : '';
-    const rec  = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
-    recorderRef.current = rec;
-
-    rec.ondataavailable = e => {
-      if (e.data.size > 0) chunksRef.current.push(e.data);
-    };
-
-    rec.onstop = () => {
-      const dur  = Date.now() - startedAtRef.current;
-      const blob = new Blob(chunksRef.current, { type: rec.mimeType || 'audio/webm' });
-      cleanup();
-      setElapsed(0);
-      setStatus('processing');
-      setTimeout(() => {
-        if (maxAmpRef.current < 15) {
-          setStatus('error');
-          setErrType('no-speech');
-          onError?.({ type: 'no-speech-detected' });
-        } else {
-          onRecordingComplete(blob, dur);
-          setStatus('idle');
-        }
-      }, 100);
-    };
-
-    rec.start(100);
-    startedAtRef.current = Date.now();
-    setStatus('recording');
-    setElapsed(0);
-
-    timerRef.current = setInterval(() => {
-      const e = Date.now() - startedAtRef.current;
-      setElapsed(e);
-      if (e >= maxDurationMs) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-        recorderRef.current?.stop();
-      }
-    }, 50);
-  }, [cleanup, maxDurationMs, onError, onRecordingComplete]);
-
-  const stop = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    recorderRef.current?.stop();
-  }, []);
-
-  const fmt = ms => {
-    const s = Math.floor(ms / 1000);
-    return `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
-  };
-
-  /* Expanded recording strip state (Monochrome B&W) */
-  if (status === 'recording' || status === 'processing' || status === 'requesting') {
-    return (
-      <div className="flex-1 flex items-center gap-3 px-2 py-1">
-        <div className="flex items-center gap-2 shrink-0">
-          {status === 'requesting' || status === 'processing' ? (
-            <Loader2 className="w-4 h-4 animate-spin text-[#a1a1aa]" />
-          ) : (
-            <span
-              className="w-2.5 h-2.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]"
-              style={{ animation: 'recPulse 1s ease-in-out infinite' }}
-            />
-          )}
-          <span className="font-mono text-[12px] text-[#a1a1aa] tabular-nums">
-            {status === 'requesting' ? 'Waiting for mic…' : status === 'processing' ? 'Processing audio…' : fmt(elapsed)}
-          </span>
-        </div>
-
-        <div className="flex-1 h-7 rounded-lg overflow-hidden bg-[#09090b] border border-[#27272a]">
-          {status === 'recording' && (
-            <InlineWaveform analyserRef={analyserRef} maxAmplitudeSeenRef={maxAmpRef} />
-          )}
-        </div>
-
-        {status === 'recording' && (
-          <button
-            onClick={stop}
-            type="button"
-            className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center bg-white text-black hover:bg-[#e4e4e7] transition-colors shadow"
-            title="Stop recording"
-          >
-            <Square className="w-3.5 h-3.5 fill-black" />
-          </button>
-        )}
-        <style>{`@keyframes recPulse{0%,100%{opacity:1}50%{opacity:0.3}}`}</style>
-      </div>
-    );
-  }
-
-  /* Compact mic button state — now exposes start() via ref */
-  const isErr = status === 'error';
-  return (
-    <button
-      id="recorder-mic-btn"
-      ref={(el) => {
-        // Expose start() upward so VoiceInput can trigger recording without a second click
-        if (el && startRef) startRef.current = start;
-      }}
-      type="button"
-      onClick={start}
-      aria-label={isErr ? 'Retry recording' : 'Record voice query'}
-      title={isErr ? 'Mic error — click to retry' : 'Start voice recording'}
-      className="p-2 text-[#71717a] hover:text-white transition-colors focus:outline-none"
-    >
-      <Mic className={`w-4 h-4 ${isErr ? 'text-white animate-pulse' : ''}`} />
-    </button>
-  );
-}
-
 /* ═══════════════════════════════════════════════════════════════════════════
    3D Monochrome Mascot Component (Black & White 3D Robot)
 ═══════════════════════════════════════════════════════════════════════════ */
@@ -352,58 +102,22 @@ export default function WorkspacePage() {
   const [activeFocus, setActiveFocus] = useState('Summarize reports');
   const [inputVal, setInputVal]       = useState('');
   const [notice, setNotice]           = useState(null);
-  const [expanded, setExpanded]       = useState(false);
 
-  // STT state machine: 'idle' | 'transcribing' | 'done' | 'error'
-  const [sttState, setSttState]       = useState('idle');
-  const [sttError, setSttError]       = useState(null);
-
-  // Ref to RecorderBar's start() — lets VoiceInput trigger recording without a second click
-  const recorderStartRef = useRef(null);
-
-  const onRecordingComplete = useCallback(async (blob, durationMs) => {
-    console.log('[STT] Audio blob ready — size:', blob.size, 'bytes, duration:', durationMs, 'ms');
-    setSttState('transcribing');
-    setSttError(null);
-    setNotice({ type: 'transcribing' });
-
-    try {
-      const form = new FormData();
-      form.append('file', blob, 'recording.webm');
-
-      const res  = await fetch('/api/transcribe', { method: 'POST', body: form });
-      const data = await res.json();
-
-      if (!res.ok || !data.ok) {
-        const msg = data?.error?.message ?? 'Transcription failed. Please try again.';
-        setSttState('error');
-        setSttError(msg);
-        setNotice({ type: 'error', message: msg });
-        return;
-      }
-
-      // Success — put transcript into the input so user can edit + send
-      setSttState('done');
-      setInputVal(data.text);
-      setNotice({
-        type:     'done',
-        text:     data.text,
-        lang:     data.detectedLanguage,
-        latency:  data.latencyMs,
-        duration: durationMs,
-      });
-    } catch (err) {
-      console.error('[STT] fetch error:', err);
-      setSttState('error');
-      setSttError('Network error — could not reach the transcription service.');
-      setNotice({ type: 'error', message: 'Network error — could not reach the transcription service.' });
-    }
+  const handleTranscript = useCallback((text, lang, latencyMs) => {
+    setInputVal(text);
+    setNotice({
+      type: 'done',
+      text,
+      lang,
+      latency: latencyMs,
+    });
   }, []);
 
-  const onError = useCallback(err => {
-    console.warn('[Recorder] Mic error:', err);
-    setSttState('error');
-    setSttError(err?.message ?? 'Microphone error.');
+  const handleTranscribeError = useCallback((message) => {
+    setNotice({
+      type: 'error',
+      message,
+    });
   }, []);
 
   const focusPills = [
@@ -623,7 +337,7 @@ export default function WorkspacePage() {
                   </span>
                   <button
                     type="button"
-                    onClick={() => { setNotice(null); setSttState('idle'); }}
+                    onClick={() => setNotice(null)}
                     className="text-[#71717a] hover:text-white font-bold shrink-0 ml-1"
                   >
                     ✕
@@ -648,49 +362,31 @@ export default function WorkspacePage() {
                   </button>
                 </div>
 
-                {/* Input Field OR Recording Bar */}
+                {/* Input Field */}
                 <div className="flex-1 min-w-0 mx-2">
-                  {expanded ? (
-                    <RecorderBar
-                      onRecordingComplete={onRecordingComplete}
-                      onError={onError}
-                      onExpandChange={setExpanded}
-                      maxDurationMs={30000}
-                      startRef={recorderStartRef}
-                    />
-                  ) : (
-                    <input
-                      type="text"
-                      value={inputVal}
-                      onChange={e => setInputVal(e.target.value)}
-                      placeholder={sttState === 'transcribing' ? 'Transcribing…' : 'Ask mindlink...'}
-                      className="w-full bg-transparent text-[13px] text-white placeholder:text-[#71717a] focus:outline-none px-2"
-                      readOnly={sttState === 'transcribing'}
-                    />
-                  )}
+                  <input
+                    type="text"
+                    value={inputVal}
+                    onChange={e => setInputVal(e.target.value)}
+                    placeholder="Ask mindlink..."
+                    className="w-full bg-transparent text-[13px] text-white placeholder:text-[#71717a] focus:outline-none px-2"
+                  />
                 </div>
 
                 {/* Right — VoiceInput pill + Send */}
-                {!expanded && (
-                  <div className="flex items-center gap-2 shrink-0">
-                    {/* VoiceInput pill — click triggers recording immediately */}
-                    <VoiceInput
-                      onStart={() => {
-                        setExpanded(true);
-                        // Small delay so RecorderBar mounts and registers its startRef
-                        setTimeout(() => recorderStartRef.current?.(), 80);
-                      }}
-                      onStop={() => setExpanded(false)}
-                    />
-                    <div className="w-px h-4 bg-[#27272a]" />
-                    <button
-                      type="button"
-                      className="px-5 py-2 rounded-xl text-[13px] font-bold text-black bg-white hover:bg-[#e4e4e7] transition-all shadow-md active:scale-[0.97]"
-                    >
-                      Send
-                    </button>
-                  </div>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  <VoiceInput
+                    onTranscript={handleTranscript}
+                    onTranscribeError={handleTranscribeError}
+                  />
+                  <div className="w-px h-4 bg-[#27272a]" />
+                  <button
+                    type="button"
+                    className="px-5 py-2 rounded-xl text-[13px] font-bold text-black bg-white hover:bg-[#e4e4e7] transition-all shadow-md active:scale-[0.97]"
+                  >
+                    Send
+                  </button>
+                </div>
               </div>
             </div>
 
