@@ -129,9 +129,15 @@ export default function WorkspacePage() {
     },
   ]);
 
-  const handleSendQuery = useCallback(async (customQuery) => {
+  const handleSendQuery = useCallback(async (customQuery, queryLang) => {
     const q = (typeof customQuery === 'string' ? customQuery : inputVal)?.trim();
     if (!q || isAnswering) return;
+
+    // Normalize language code (e.g. 'hi-IN' -> 'hi', 'ta-IN' -> 'ta', 'te-IN' -> 'te')
+    let lang = queryLang || selectedLang || 'hi';
+    if (typeof lang === 'string' && lang.includes('-')) {
+      lang = lang.split('-')[0];
+    }
 
     setInputVal('');
     const newId = 'msg-' + Date.now();
@@ -144,6 +150,9 @@ export default function WorkspacePage() {
         prompt: q,
         response: '',
         isStreaming: true,
+        language: lang,
+        citations: [],
+        telemetry: null,
       },
     ]);
     setIsAnswering(true);
@@ -153,7 +162,7 @@ export default function WorkspacePage() {
       const res = await fetch('/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q }),
+        body: JSON.stringify({ query: q, language: lang }),
       });
       const data = await res.json();
       const answerText = data.answer || `Analyzed your workspace knowledge base for: "${q}"\n\n• Grounded in verified MSMARCO-XI Indic context\n• Citation score: 0.94\n• Ready for next query.`;
@@ -166,14 +175,25 @@ export default function WorkspacePage() {
         streamed += tokens[i];
         const currentSnapshot = streamed;
         setConversation(prev =>
-          prev.map(item => item.id === newId ? { ...item, response: currentSnapshot } : item)
+          prev.map(item => item.id === newId ? {
+            ...item,
+            response: currentSnapshot,
+            citations: data.citations || [],
+            telemetry: data.telemetry || null,
+          } : item)
         );
         // Realistic typewriter delay
-        await new Promise(r => setTimeout(r, 20));
+        await new Promise(r => setTimeout(r, 15));
       }
 
       setConversation(prev =>
-        prev.map(item => item.id === newId ? { ...item, isStreaming: false } : item)
+        prev.map(item => item.id === newId ? {
+          ...item,
+          response: answerText,
+          citations: data.citations || [],
+          telemetry: data.telemetry || null,
+          isStreaming: false,
+        } : item)
       );
     } catch (err) {
       setConversation(prev =>
@@ -186,7 +206,7 @@ export default function WorkspacePage() {
     } finally {
       setIsAnswering(false);
     }
-  }, [inputVal, isAnswering]);
+  }, [inputVal, isAnswering, selectedLang]);
 
   const handleTranscript = useCallback((text, lang, confidence, latencyMs) => {
     setInputVal(text);
@@ -201,7 +221,7 @@ export default function WorkspacePage() {
 
     // Auto-send query on voice transcription for instant live response!
     if (text && text.trim()) {
-      handleSendQuery(text);
+      handleSendQuery(text, lang);
     }
   }, [handleSendQuery]);
 
@@ -351,6 +371,23 @@ export default function WorkspacePage() {
                       {item.response || (item.isStreaming ? 'Searching multilingual dataset and synthesizing grounded response...' : '')}
                       {item.isStreaming && <span className="inline-block w-1.5 h-3.5 bg-white ml-1 animate-pulse align-middle" />}
                     </div>
+
+                    {/* Citations & Verified Grounding Info */}
+                    {item.citations && item.citations.length > 0 && !item.isStreaming && (
+                      <div className="pt-2.5 border-t border-[#27272a]/60 space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px] text-[#71717a] font-mono">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                            Grounded in {item.citations.length} MSMARCO-XI sources
+                          </span>
+                          {item.telemetry?.totalLatencyMs && (
+                            <span className="text-[#a1a1aa] bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                              ⚡ {item.telemetry.totalLatencyMs}ms
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
