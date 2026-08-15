@@ -9,9 +9,11 @@
     "lint": "next lint",
     "ingest": "tsx scripts/ingest-dataset.js",
     "chunk": "tsx scripts/chunk/run.ts",
+    "index:build": "tsx scripts/index/build_index.ts",
     "benchmark": "tsx scripts/benchmark-latency.js"
   },
   "dependencies": {
+    "@qdrant/js-client-rest": "^1.19.0",
     "@supabase/supabase-js": "^2.43.5",
     "clsx": "^2.1.1",
     "framer-motion": "^11.2.10",
