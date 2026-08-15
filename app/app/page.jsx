@@ -115,10 +115,11 @@ const LANGUAGE_NAMES = {
    MAIN WORKSPACE PAGE COMPONENT (Strict Black & White Monochrome)
 ═══════════════════════════════════════════════════════════════════════════ */
 export default function WorkspacePage() {
-  const [activeFocus, setActiveFocus] = useState('Summarize reports');
-  const [inputVal, setInputVal]       = useState('');
-  const [notice, setNotice]           = useState(null);
-  const [isAnswering, setIsAnswering] = useState(false);
+  const [activeFocus, setActiveFocus]   = useState('Summarize reports');
+  const [inputVal, setInputVal]         = useState('');
+  const [notice, setNotice]             = useState(null);
+  const [isAnswering, setIsAnswering]   = useState(false);
+  const [selectedLang, setSelectedLang] = useState('hi');
 
   const [conversation, setConversation] = useState([
     {
