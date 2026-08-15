@@ -143,7 +143,11 @@ export function VoiceInput({
     ctxRef.current      = audioCtx;
     analyserRef.current = analyser;
 
-    const mime     = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : '';
+    const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus'
+      : MediaRecorder.isTypeSupported('audio/webm')
+      ? 'audio/webm'
+      : '';
     const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
     recorderRef.current = recorder;
 
@@ -153,15 +157,6 @@ export function VoiceInput({
       const durationMs = Date.now() - startedAtRef.current;
       const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
       cleanup();
-
-      // Client-side silence check before spending an API call
-      if (maxAmpRef.current < SILENCE_THRESH) {
-        const msg = "We didn't detect any speech. Try again and speak clearly.";
-        setErrMsg(msg);
-        setPhase('error');
-        onTranscribeError?.(msg);
-        return;
-      }
 
       // POST to /api/transcribe (server-side Sarvam call)
       setPhase('transcribing');
@@ -180,7 +175,7 @@ export function VoiceInput({
         }
 
         setPhase('idle');
-        onTranscript?.(data.text, data.detectedLanguage, data.latencyMs);
+        onTranscript?.(data.text, data.detectedLanguage, data.confidence, data.latencyMs);
       } catch (fetchErr) {
         const msg = 'Network error — could not reach the transcription service.';
         setErrMsg(msg);

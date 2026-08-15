@@ -95,6 +95,22 @@ function Mascot3DRobotMonochrome() {
   );
 }
 
+const LANGUAGE_NAMES = {
+  'hi-IN': 'Hindi',
+  'en-IN': 'English',
+  'bn-IN': 'Bengali',
+  'ta-IN': 'Tamil',
+  'te-IN': 'Telugu',
+  'mr-IN': 'Marathi',
+  'gu-IN': 'Gujarati',
+  'kn-IN': 'Kannada',
+  'ml-IN': 'Malayalam',
+  'pa-IN': 'Punjabi',
+  'od-IN': 'Odia',
+  'as-IN': 'Assamese',
+  'ur-IN': 'Urdu',
+};
+
 /* ═══════════════════════════════════════════════════════════════════════════
    MAIN WORKSPACE PAGE COMPONENT (Strict Black & White Monochrome)
 ═══════════════════════════════════════════════════════════════════════════ */
@@ -103,12 +119,14 @@ export default function WorkspacePage() {
   const [inputVal, setInputVal]       = useState('');
   const [notice, setNotice]           = useState(null);
 
-  const handleTranscript = useCallback((text, lang, latencyMs) => {
+  const handleTranscript = useCallback((text, lang, confidence, latencyMs) => {
     setInputVal(text);
+    const langLabel = LANGUAGE_NAMES[lang] ? `${LANGUAGE_NAMES[lang]} (${lang})` : lang || 'Auto-Detected';
     setNotice({
       type: 'done',
       text,
-      lang,
+      lang: langLabel,
+      confidence: confidence ? `${Math.round(confidence * 100)}%` : null,
       latency: latencyMs,
     });
   }, []);
@@ -329,16 +347,23 @@ export default function WorkspacePage() {
                     )}
                     {notice.type === 'error' && `❌ ${notice.message}`}
                     {notice.type === 'done' && (
-                      <span>
-                        🎤 <span className="font-mono text-white">{notice.text}</span>
-                        <span className="ml-2 text-[#71717a]">({notice.lang} · {notice.latency}ms)</span>
-                      </span>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-white">🎤 Transcript:</span>
+                          <span className="font-mono text-white bg-white/10 px-2 py-0.5 rounded">"{notice.text}"</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[11px] text-[#a1a1aa]">
+                          <span>Language: <strong className="text-white font-medium">{notice.lang}</strong></span>
+                          {notice.confidence && <span>• Confidence: <strong className="text-white font-medium">{notice.confidence}</strong></span>}
+                          {notice.latency && <span>• Latency: <strong className="text-white font-medium">{notice.latency}ms</strong></span>}
+                        </div>
+                      </div>
                     )}
                   </span>
                   <button
                     type="button"
                     onClick={() => setNotice(null)}
-                    className="text-[#71717a] hover:text-white font-bold shrink-0 ml-1"
+                    className="text-[#71717a] hover:text-white font-bold shrink-0 ml-1 mt-0.5"
                   >
                     ✕
                   </button>
