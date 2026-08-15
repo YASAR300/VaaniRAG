@@ -87,9 +87,9 @@ async function searchVectorIndex(
   const collectionName = QDRANT_COLLECTIONS[strategy] || `chunks_${strategy}`;
   const qdrant = getQdrantClient();
 
-  // 1. Try Qdrant Server if responsive
+  // 1. Query Qdrant Cloud Vector Database Live
   try {
-    const filter = languageFilter
+    const filter = (languageFilter && languageFilter !== 'all' && !languageFilter.startsWith('en'))
       ? {
           must: [
             {
@@ -100,21 +100,32 @@ async function searchVectorIndex(
         }
       : undefined;
 
-    const searchResponse = await qdrant.search(collectionName, {
-      vector: queryVector,
-      limit: topK,
-      filter,
-      with_payload: true,
-    });
+    let points: any[] = [];
+    if (typeof (qdrant as any).query === 'function') {
+      const queryRes = await (qdrant as any).query(collectionName, {
+        query: queryVector,
+        limit: topK,
+        filter,
+        with_payload: true,
+      });
+      points = queryRes?.points || [];
+    } else if (typeof (qdrant as any).search === 'function') {
+      points = await (qdrant as any).search(collectionName, {
+        vector: queryVector,
+        limit: topK,
+        filter,
+        with_payload: true,
+      });
+    }
 
-    if (searchResponse && searchResponse.length > 0) {
-      return searchResponse.map(res => ({
-        id: res.payload?.chunkId as string || String(res.id),
-        text: res.payload?.text as string || '',
-        language: res.payload?.language as string || '',
-        sourceRecordId: res.payload?.sourceRecordId as string || '',
+    if (points && points.length > 0) {
+      return points.map((res: any) => ({
+        id: (res.payload?.chunkId as string) || String(res.id),
+        text: (res.payload?.text as string) || '',
+        language: (res.payload?.language as string) || '',
+        sourceRecordId: (res.payload?.sourceRecordId as string) || '',
         rawScore: res.score,
-        parentChunkId: res.payload?.parentChunkId as string || null,
+        parentChunkId: (res.payload?.parentChunkId as string) || null,
         metadata: res.payload as Record<string, unknown>,
       }));
     }
