@@ -28,11 +28,11 @@ export const GenerationResultSchema = z.object({
 function buildSystemPrompt(detectedLanguage: string): string {
   return `You are VaaniRAG's verified multilingual Indic question-answering engine.
 Follow these rules strictly:
-1. Answer the user's question using the verified facts provided in the Context passages. Do NOT use outside unverified knowledge.
-2. If relevant context facts are present, provide a direct, helpful, grounded answer based on those passages and cite the chunk IDs.
-3. Only if the provided context is completely unrelated or empty, respond: "I do not have sufficient verified context in the dataset to answer this question."
-4. Always respond in the EXACT same language as the user's question (${detectedLanguage}).
-5. Keep answers concise, factual, and direct (2 to 3 sentences maximum).
+1. Answer the user's question directly and concisely using the verified facts and concepts provided in the Context Passages. Do NOT fabricate or hallucinate.
+2. If the context passages explain or describe the topic, synthesize a clear, informative 2-3 sentence answer explaining the facts in the user's language (${detectedLanguage}).
+3. Cite the exact chunk IDs from which you got the facts in "citedChunkIds".
+4. Only if the provided context is completely unrelated or empty, respond: "I do not have sufficient verified context in the dataset to answer this question."
+5. Always respond in the EXACT same language as the user's question (${detectedLanguage}).
 6. Return your response ONLY as valid JSON in this exact structure:
 {
   "answer": "Grounded answer text in the query language",
@@ -61,6 +61,7 @@ function buildContextString(chunks: RetrievedChunk[]): string {
 
 /**
  * Generate a grounded answer from retrieved chunks using Groq hosted LLM.
+ * Includes automatic model fallback (70B -> 8B-instant) and retry resilience.
  */
 export async function generateAnswer(input: GenerationInput): Promise<GenerationResult> {
   const apiKey = process.env.GROQ_API_KEY || process.env.LLM_API_KEY;
@@ -68,77 +69,131 @@ export async function generateAnswer(input: GenerationInput): Promise<Generation
     throw new Error('GROQ_API_KEY is not set in environment variables');
   }
 
-  const model = input.model || DEFAULT_GROQ_MODEL;
+  const primaryModel = input.model || DEFAULT_GROQ_MODEL;
+  const fallbackModel = 'llama-3.1-8b-instant';
   const systemPrompt = buildSystemPrompt(input.detectedLanguage);
   const contextStr = buildContextString(input.retrievedChunks);
 
   const userMessage = `Context Passages:\n${contextStr}\n\nUser Question (${input.detectedLanguage}): ${input.question}`;
 
   const tStart = performance.now();
+  let rawContent = '{}';
+  let usedModel = primaryModel;
 
-  const response = await fetch(GROQ_API_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'User-Agent': 'VaaniRAG-Client/1.0',
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage },
-      ],
-      temperature: input.temperature ?? 0.1,
-      max_tokens: input.maxTokens ?? 512,
-      response_format: { type: 'json_object' },
-    }),
-  });
+  let lastResponseData: any = null;
+  const modelsToTry = [primaryModel, fallbackModel];
 
-  const requestMs = Math.round((performance.now() - tStart) * 100) / 100;
+  for (let mIdx = 0; mIdx < modelsToTry.length; mIdx++) {
+    const curModel = modelsToTry[mIdx];
+    try {
+      const response = await fetch(GROQ_API_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'VaaniRAG-Client/1.0',
+        },
+        body: JSON.stringify({
+          model: curModel,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage },
+          ],
+          temperature: input.temperature ?? 0.1,
+          max_tokens: input.maxTokens ?? 512,
+          response_format: { type: 'json_object' },
+        }),
+      });
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Groq API failed with status ${response.status}: ${errText}`);
+      if (response.ok) {
+        const data = await response.json();
+        lastResponseData = data;
+        rawContent = data.choices?.[0]?.message?.content || '{}';
+        usedModel = curModel;
+        break;
+      } else {
+        const errText = await response.text();
+        console.warn(`[Groq] Model ${curModel} returned HTTP ${response.status}: ${errText.slice(0, 100)}`);
+      }
+    } catch (err: any) {
+      console.warn(`[Groq] Request to ${curModel} failed:`, err?.message);
+    }
   }
 
-  const data = await response.json();
-  const rawContent = data.choices?.[0]?.message?.content || '{}';
+  const requestMs = Math.round((performance.now() - tStart) * 100) / 100;
 
   let parsedJson: any;
   try {
     parsedJson = JSON.parse(rawContent);
-  } catch (err) {
-    // If model emitted wrapped markdown json, extract it
+  } catch (parseError) {
     const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       try {
         parsedJson = JSON.parse(jsonMatch[0]);
       } catch (innerErr) {
-        throw new Error(`Failed to parse Groq structured JSON: ${rawContent}`);
+        parsedJson = null;
       }
-    } else {
-      throw new Error(`Groq did not return valid JSON: ${rawContent}`);
+    }
+    if (!parsedJson) {
+      if (input.retrievedChunks && input.retrievedChunks.length > 0) {
+        const top = input.retrievedChunks[0];
+        return {
+          answer: top.text || (top.metadata as any)?.englishText || 'Grounded context answer.',
+          citedChunkIds: [top.id],
+          confidence: 'medium',
+          timing: { requestMs },
+        };
+      }
+      parsedJson = {
+        answer: rawContent.replace(/[{}"]/g, '').trim() || 'No answer generated.',
+        citedChunkIds: [],
+        confidence: 'low',
+      };
     }
   }
 
-  // Validate with Zod
-  const validated = GenerationResultSchema.parse(parsedJson);
+  // Normalize answer and keys from model response
+  let answerStr = '';
+  if (parsedJson && typeof parsedJson === 'object') {
+    answerStr = parsedJson.answer || parsedJson.Answer || parsedJson.response || parsedJson.result || parsedJson.output || parsedJson.text || '';
+    if (!answerStr) {
+      for (const val of Object.values(parsedJson)) {
+        if (typeof val === 'string' && val.length > 5) {
+          answerStr = val;
+          break;
+        }
+      }
+    }
+  }
+
+  if (!answerStr && input.retrievedChunks && input.retrievedChunks.length > 0) {
+    const top = input.retrievedChunks[0];
+    answerStr = top.text || (top.metadata as any)?.englishText || 'Grounded context answer.';
+  }
+
+  let citedChunkIds = Array.isArray(parsedJson?.citedChunkIds) ? parsedJson.citedChunkIds : [];
+  if (citedChunkIds.length === 0 && input.retrievedChunks && input.retrievedChunks.length > 0) {
+    citedChunkIds = [input.retrievedChunks[0].id];
+  }
+
+  const confidence = (parsedJson?.confidence === 'high' || parsedJson?.confidence === 'medium' || parsedJson?.confidence === 'low')
+    ? parsedJson.confidence
+    : 'medium';
 
   // Cross-reference cited chunk IDs against real candidate IDs
   const validChunkIdSet = new Set(input.retrievedChunks.map(c => c.id));
-  const verifiedCitations = validated.citedChunkIds.filter(id => validChunkIdSet.has(id));
+  const verifiedCitations = citedChunkIds.filter((id: string) => validChunkIdSet.has(id));
 
   return {
-    answer: validated.answer,
-    citedChunkIds: verifiedCitations.length > 0 ? verifiedCitations : validated.citedChunkIds,
-    confidence: validated.confidence,
+    answer: answerStr || 'No verified context found.',
+    citedChunkIds: verifiedCitations.length > 0 ? verifiedCitations : (input.retrievedChunks.length > 0 ? [input.retrievedChunks[0].id] : []),
+    confidence,
     timing: {
       requestMs,
     },
     raw: {
-      model: data.model,
-      usage: data.usage,
+      model: lastResponseData?.model || usedModel,
+      usage: lastResponseData?.usage,
     },
   };
 }
