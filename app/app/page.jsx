@@ -18,6 +18,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { VoiceInput } from '@/components/ui/voice-input';
+import LatencyBadge from '@/components/app/LatencyBadge';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    3D Monochrome Mascot Component (Black & White 3D Robot)
@@ -273,8 +274,9 @@ export default function WorkspacePage() {
             </p>
           </div>
 
-          {/* Top Right Controls Pill */}
+          {/* Top Right Controls & Latency Indicator */}
           <div className="flex items-center gap-3">
+            <LatencyBadge />
             <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#18181b] border border-[#27272a] shadow-sm">
               <span className="w-2 h-2 rounded-full bg-white shadow-[0_0_8px_#ffffff]" />
               <button type="button" className="text-[#71717a] hover:text-white transition-colors" title="Notifications">

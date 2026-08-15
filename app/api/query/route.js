@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { retrieve, warmupRetrievalIndex } from '@/lib/retrieval/retrieve';
-import { generateAnswer } from '@/lib/generation/answer';
+import { warmupRetrievalIndex } from '@/lib/retrieval/retrieve';
+import { runTracedQuery } from '@/lib/observability/tracedPipeline';
 
 // Warm up the retrieval vector index on server startup
 try {
@@ -10,11 +10,9 @@ try {
 }
 
 export async function POST(request) {
-  const startTime = performance.now();
-
   try {
     const body = await request.json();
-    const { query, language = 'hi' } = body;
+    const { query, language = 'hi', sttDurationMs } = body;
 
     if (!query || !query.trim()) {
       return NextResponse.json(
@@ -23,47 +21,14 @@ export async function POST(request) {
       );
     }
 
-    // ── 1. Phase 9: Retrieval & Reranking ─────────────────────────────
-    const tRetStart = performance.now();
-    const retrievalResult = await retrieve(query, language, {
+    // Execute traced sequencing pipeline (Retrieval + Generation + Fire-and-forget Trace Saving)
+    const { result, generation, trace } = await runTracedQuery(query, language, {
       strategy: 'metadata',
       topK: 4,
+      sttDurationMs,
     });
-    const retrievalMs = Math.round((performance.now() - tRetStart) * 100) / 100;
 
-    // ── 2. Guardrail Check: No Relevant Context ───────────────────────
-    if (retrievalResult.noRelevantContext || retrievalResult.chunks.length === 0) {
-      const totalLatencyMs = Math.round((performance.now() - startTime) * 100) / 100;
-      return NextResponse.json({
-        answer: 'I do not have sufficient verified context in the dataset to answer this question.',
-        citations: [],
-        confidence: 'low',
-        telemetry: {
-          totalLatencyMs,
-          budgetMet: totalLatencyMs <= 200,
-          stages: {
-            guardrailMs: 1,
-            retrievalMs,
-            generationMs: 0,
-            groundingCheckMs: 1,
-          },
-        },
-      });
-    }
-
-    // ── 3. Phase 10: Grounded Groq LLM Answer Generation ─────────────
-    const tGenStart = performance.now();
-    const genResult = await generateAnswer({
-      question: query,
-      detectedLanguage: language,
-      retrievedChunks: retrievalResult.chunks,
-    });
-    const generationMs = Math.round((performance.now() - tGenStart) * 100) / 100;
-
-    const totalLatencyMs = Math.round((performance.now() - startTime) * 100) / 100;
-
-    // Map citations to client format
-    const citations = retrievalResult.chunks.map(chunk => ({
+    const citations = result.chunks.map(chunk => ({
       passageId: chunk.id,
       text: chunk.text,
       language: chunk.language,
@@ -71,17 +36,18 @@ export async function POST(request) {
     }));
 
     return NextResponse.json({
-      answer: genResult.answer,
+      answer: generation.answer,
       citations,
-      citedChunkIds: genResult.citedChunkIds,
-      confidence: genResult.confidence,
+      citedChunkIds: generation.citedChunkIds,
+      confidence: generation.confidence,
+      traceId: trace.id,
       telemetry: {
-        totalLatencyMs,
-        budgetMet: totalLatencyMs <= 200,
+        totalLatencyMs: trace.totals.postSttMs,
+        budgetMet: trace.totals.postSttMs <= 200,
         stages: {
-          retrievalTiming: retrievalResult.timing,
-          retrievalMs,
-          generationMs,
+          retrievalTiming: result.timing,
+          retrievalMs: trace.stages.retrieval?.durationMs || 0,
+          generationMs: trace.stages.generation?.durationMs || 0,
         },
       },
     });
