@@ -18,7 +18,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { embed } from '../embeddings/embed';
+import { embed, embedSparse } from '../embeddings/embed';
 import { rerank, CandidateChunk } from '../rerank/reranker';
 import { getQdrantClient, QDRANT_COLLECTIONS, chunkIdToUUID } from '../qdrant/client';
 import {
@@ -79,6 +79,7 @@ function loadLocalIndex(strategy: StrategyType): Array<{ id: string; vector: num
  */
 async function searchVectorIndex(
   queryVector: number[],
+  queryText: string,
   strategy: StrategyType,
   topK: number,
   languageFilter?: string
@@ -138,15 +139,33 @@ async function searchVectorIndex(
     candidatePool = indexPoints;
   }
 
-  // Calculate cosine similarities
+  // Calculate hybrid similarities (dense cosine + sparse BM25)
+  const querySparse = embedSparse(queryText);
+  const sparseMap = new Map<number, number>();
+  for (let i = 0; i < querySparse.indices.length; i++) {
+    sparseMap.set(querySparse.indices[i], querySparse.values[i]);
+  }
+
   const scored = candidatePool.map(point => {
-    const score = computeCosine(queryVector, point.vector);
+    const denseScore = computeCosine(queryVector, point.vector);
+    let sparseScore = 0;
+    if (point.sparse && Array.isArray(point.sparse.indices)) {
+      for (let i = 0; i < point.sparse.indices.length; i++) {
+        const idx = point.sparse.indices[i];
+        if (sparseMap.has(idx)) {
+          sparseScore += (sparseMap.get(idx)! * (point.sparse.values[i] || 1.0));
+        }
+      }
+    }
+    const normSparse = Math.min(1.0, sparseScore / Math.max(1, querySparse.indices.length * 1.5));
+    const combinedScore = (denseScore * 0.70) + (normSparse * 0.30);
+
     return {
       id: point.payload?.chunkId || point.id,
       text: point.payload?.text || '',
       language: point.payload?.language || '',
       sourceRecordId: point.payload?.sourceRecordId || '',
-      rawScore: score,
+      rawScore: Math.round(combinedScore * 1000) / 1000,
       parentChunkId: point.payload?.parentChunkId || null,
       metadata: point.payload || {},
     };
@@ -194,7 +213,7 @@ export async function retrieve(
 
   // ── 2. Vector Search (with Language Filter) ──────────────────────────
   const tSearchStart = performance.now();
-  const candidates = await searchVectorIndex(queryVector, strategy, topK, langFilter);
+  const candidates = await searchVectorIndex(queryVector, queryText, strategy, topK, langFilter);
   const searchMs = Math.round((performance.now() - tSearchStart) * 100) / 100;
 
   // ── 3. Cross-Encoder Reranking ────────────────────────────────────────

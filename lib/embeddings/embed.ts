@@ -57,6 +57,15 @@ export async function embedBatch(
   return embedViaLocalEngine(texts, options?.language);
 }
 
+const STOP_WORDS = new Set([
+  'the', 'is', 'at', 'which', 'on', 'and', 'a', 'an', 'in', 'to', 'for', 'of', 'or',
+  'by', 'with', 'from', 'as', 'that', 'this', 'it', 'tell', 'me', 'about', 'what',
+  'how', 'why', 'when', 'where', 'who', 'does', 'did', 'do', 'are', 'was', 'were',
+  'have', 'has', 'had', 'be', 'been', 'being', 'can', 'could', 'should', 'would',
+  'का', 'के', 'की', 'में', 'से', 'पर', 'और', 'है', 'हैं', 'था', 'थी', 'थे', 'को', 'ने',
+  'છે', 'ના', 'ની', 'ને', 'માં', 'અને', 'તે'
+]);
+
 /**
  * Generate a sparse lexical vector (BM25-style term frequencies) for hybrid search in Qdrant.
  */
@@ -65,7 +74,11 @@ export function embedSparse(text: string): SparseVector {
     return { indices: [], values: [] };
   }
 
-  const words = text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(w => w.length > 0);
+  const words = text
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(w => w.length > 1 && !STOP_WORDS.has(w));
+
   const tf = new Map<number, number>();
 
   for (const word of words) {
@@ -170,7 +183,7 @@ function embedViaLocalEngine(texts: string[], language?: string): number[][] {
       const token = tokens[tIdx];
       const h1 = hashStringToUint32(token);
       const h2 = hashStringToUint32(token + '_rev');
-      const h3 = hashStringToUint32(token + (language || 'indic'));
+      const h3 = hashStringToUint32(token + '_bi');
 
       const dim1 = h1 % EMBEDDING_DIMENSION;
       const dim2 = h2 % EMBEDDING_DIMENSION;

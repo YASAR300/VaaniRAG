@@ -196,7 +196,7 @@ async function indexStrategy(
     // Prepare points with dense + sparse representations and full payload
     const points = batchChunks.map((chunk, i) => {
       const vector = vectors[i] || new Array(EMBEDDING_DIMENSION).fill(0);
-      const sparse = embedSparse(chunk.text);
+      const sparse = embedSparse(texts[i]);
       const pointId = chunkIdToUUID(chunk.id);
 
       return {
