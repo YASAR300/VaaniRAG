@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "ingest": "tsx scripts/ingest-dataset.js",
+    "chunk": "tsx scripts/chunk/run.ts",
     "benchmark": "tsx scripts/benchmark-latency.js"
   },
   "dependencies": {
