@@ -16,8 +16,10 @@ const footerLinks = [
     heading: 'Open Source',
     links: [
       { label: 'GitHub',        href: 'https://github.com/YASAR300/VaaniRAG', external: true },
-      { label: 'MS MARCO-XI',   href: 'https://huggingface.co/datasets/ai4bharat/MSMARCO-XI', external: true },
-      { label: 'Sarvam AI',     href: 'https://sarvam.ai', external: true },
+      // TODO: update with real Vercel deployment URL before submission (Phase 16)
+      { label: 'Live Demo',     href: 'https://vaaniraag.vercel.app', external: true },
+      { label: 'MSMARCO-XI',   href: 'https://huggingface.co/datasets/ai4bharat/MSMARCO-XI', external: true },
+      { label: 'Sarvam AI',    href: 'https://sarvam.ai', external: true },
     ],
   },
   {
@@ -99,7 +101,7 @@ export function Footer() {
             >
               <Github className="w-4 h-4" />
             </a>
-            <span className="text-[11px] font-mono text-[#333] border border-[#1f1f1f] px-2 py-0.5 rounded">
+            <span className="text-[11px] font-mono text-[#555] border border-[#1f1f1f] px-2 py-0.5 rounded">
               #RAGInGoa
             </span>
           </div>

@@ -8,16 +8,16 @@ const changes = [
   {
     version: 'v0.3',
     date:    'Aug 2026',
-    title:   'Multi-strategy chunking',
-    desc:    'Fixed sliding window, semantic boundary, and hierarchical parent-child chunking strategies — all running in parallel inside Supabase pgvector.',
+    title:   'Qdrant hybrid search live',
+    desc:    'BGE-M3 dense embeddings fused with Qdrant sparse search — all 13 MSMARCO-XI Indic language passages indexed, sub-55ms retrieval.',
     bg:      '#0d0d0d',
     border:  '#222',
   },
   {
     version: 'v0.2',
     date:    'Aug 2026',
-    title:   'Hybrid retrieval engine',
-    desc:    'Dense pgvector cosine similarity fused with BM25 sparse keyword search delivers exact domain passages with regional entity name coverage.',
+    title:   'Groq answer generation',
+    desc:    'Llama-3.3-70b on Groq API generates grounded, citation-backed answers from retrieved passages — streamed, structured, zero hallucination.',
     bg:      '#111',
     border:  '#2a2a2a',
   },
@@ -25,7 +25,7 @@ const changes = [
     version: 'v0.1',
     date:    'Aug 2026',
     title:   'Voice pipeline live',
-    desc:    'Sarvam AI Saarika STT transcribes Hindi and Indian-English voice queries end-to-end with sub-200ms total budget across all pipeline stages.',
+    desc:    'Sarvam AI Saarika v2 STT transcribes Hindi and Indian-English voice queries. Post-transcript pipeline targets under 200ms end-to-end.',
     bg:      '#f5f5f5',
     border:  '#ddd',
     dark:    false,
@@ -94,25 +94,23 @@ export function FinalCTA() {
       <section className="border-t border-[#1f1f1f]">
         <div className="max-w-7xl mx-auto px-6 py-28 text-center">
           <p className="text-[11px] font-medium tracking-widest uppercase text-[#878787] mb-6">
-            VaaniRAG · Hacker House Goa 2026
+            VaaniRAG · Hacker House Goa 2026 · #RAGInGoa
           </p>
           <h2 className="text-[44px] sm:text-[56px] font-semibold text-white leading-[1.08] tracking-tight mb-6">
-            Built for the future.
+            Ask a question out loud,
             <br />
-            Available today.
+            in your language.
           </h2>
           <p className="text-[15px] text-[#878787] leading-relaxed max-w-[440px] mx-auto mb-10">
-            Sub-200ms voice transcription via Sarvam AI, hybrid pgvector
-            retrieval, zero-hallucination guardrails, and structured harness
-            orchestration on MS&nbsp;MARCO-XI.
-            Your voice. Real data. No guessing.
+            Sarvam AI STT · BGE-M3 embeddings · Qdrant hybrid search ·
+            Groq LLM generation — all measured, all cited, no guessing.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/app"
               className="inline-flex items-center gap-2 text-[13px] font-medium text-[#0a0a0a] bg-white hover:bg-[#e5e5e5] transition-colors px-5 py-2.5 rounded-md"
             >
-              Launch VaaniRAG
+              Try it — speak a question
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
             <a
