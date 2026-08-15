@@ -99,7 +99,7 @@ function RecorderBar({ onRecordingComplete, onError, maxDurationMs = 30000, onEx
   const ctxRef       = useRef(null);
   const analyserRef  = useRef(null);
   const chunksRef    = useRef([]);
-  const startRef     = useRef(0);
+  const startedAtRef = useRef(0);
   const timerRef     = useRef(null);
   const maxAmpRef    = useRef(0);
 
@@ -164,7 +164,7 @@ function RecorderBar({ onRecordingComplete, onError, maxDurationMs = 30000, onEx
     };
 
     rec.onstop = () => {
-      const dur  = Date.now() - startRef.current;
+      const dur  = Date.now() - startedAtRef.current;
       const blob = new Blob(chunksRef.current, { type: rec.mimeType || 'audio/webm' });
       cleanup();
       setElapsed(0);
@@ -182,12 +182,12 @@ function RecorderBar({ onRecordingComplete, onError, maxDurationMs = 30000, onEx
     };
 
     rec.start(100);
-    startRef.current = Date.now();
+    startedAtRef.current = Date.now();
     setStatus('recording');
     setElapsed(0);
 
     timerRef.current = setInterval(() => {
-      const e = Date.now() - startRef.current;
+      const e = Date.now() - startedAtRef.current;
       setElapsed(e);
       if (e >= maxDurationMs) {
         clearInterval(timerRef.current);
