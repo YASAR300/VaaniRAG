@@ -182,7 +182,11 @@ async function indexStrategy(
   for (let b = 0; b < totalBatches; b++) {
     const startIdx = b * batchSize;
     const batchChunks = chunks.slice(startIdx, startIdx + batchSize);
-    const texts = batchChunks.map(c => c.text);
+    const texts = batchChunks.map(c => {
+      const eng = (c.metadata as any)?.englishText ? ` ${(c.metadata as any).englishText}` : '';
+      const qc = c.metadata?.queryContext ? ` ${c.metadata.queryContext}` : '';
+      return `${c.text}${qc}${eng}`;
+    });
 
     // Embed batch
     const t0 = Date.now();
@@ -202,6 +206,7 @@ async function indexStrategy(
         payload: {
           chunkId: chunk.id,
           text: chunk.text,
+          englishText: (chunk.metadata as any)?.englishText || null,
           language: chunk.language,
           sourceRecordId: chunk.sourceRecordId,
           strategy: chunk.strategy,

@@ -37,20 +37,26 @@ export const DEFAULT_SCORE_THRESHOLD = 0.48;   // Calibrated threshold separatin
 /**
  * Cache for local index files in memory for high-throughput sub-millisecond searches
  */
-const localIndexCache = new Map<string, Array<{ id: string; vector: number[]; payload: any }>>();
+interface CacheEntry {
+  mtime: number;
+  points: Array<{ id: string; vector: number[]; payload: any }>;
+}
+const localIndexCache = new Map<string, CacheEntry>();
 
 export function warmupRetrievalIndex(strategy: StrategyType = DEFAULT_STRATEGY): void {
   loadLocalIndex(strategy);
 }
 
 function loadLocalIndex(strategy: StrategyType): Array<{ id: string; vector: number[]; payload: any }> {
-  if (localIndexCache.has(strategy)) {
-    return localIndexCache.get(strategy)!;
-  }
-
   const indexPath = path.join(process.cwd(), 'data', 'indexes', `${strategy}.index.jsonl`);
   if (!fs.existsSync(indexPath)) {
     return [];
+  }
+
+  const stat = fs.statSync(indexPath);
+  const cached = localIndexCache.get(strategy);
+  if (cached && cached.mtime === stat.mtimeMs) {
+    return cached.points;
   }
 
   const points: Array<{ id: string; vector: number[]; payload: any }> = [];
@@ -64,7 +70,7 @@ function loadLocalIndex(strategy: StrategyType): Array<{ id: string; vector: num
     }
   }
 
-  localIndexCache.set(strategy, points);
+  localIndexCache.set(strategy, { mtime: stat.mtimeMs, points });
   return points;
 }
 
@@ -121,13 +127,14 @@ async function searchVectorIndex(
     return [];
   }
 
-  // Filter by language if specified, with automatic fallback if too few candidates
-  let candidatePool = languageFilter
+  // Filter by Indic language if specified; if English or cross-lingual, search across all 13 languages
+  const isEnglishOrAll = !languageFilter || languageFilter === 'en' || languageFilter.startsWith('en') || languageFilter === 'all';
+  let candidatePool = !isEnglishOrAll
     ? indexPoints.filter(p => p.payload?.language === languageFilter)
     : indexPoints;
 
   // Cross-lingual fallback: if filtered language has < 2 matches, search full index
-  if (candidatePool.length < 2 && languageFilter) {
+  if (candidatePool.length < 2) {
     candidatePool = indexPoints;
   }
 
@@ -177,7 +184,8 @@ export async function retrieve(
   const strategy = options?.strategy || DEFAULT_STRATEGY;
   const topK = options?.topK || DEFAULT_TOP_K;
   const langFilter = options?.languageFilter || detectedLanguage;
-  const scoreThreshold = options?.scoreThreshold ?? DEFAULT_SCORE_THRESHOLD;
+  const isEnglishOrCross = !detectedLanguage || detectedLanguage.startsWith('en');
+  const scoreThreshold = options?.scoreThreshold ?? (isEnglishOrCross ? 0.28 : DEFAULT_SCORE_THRESHOLD);
 
   // ── 1. Embed Query Vector ─────────────────────────────────────────────
   const tEmbedStart = performance.now();

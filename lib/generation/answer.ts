@@ -52,7 +52,8 @@ function buildContextString(chunks: RetrievedChunk[]): string {
     .map((c, i) => {
       // Use parent chunk text if present (for hierarchical strategy expansion), otherwise child text
       const content = (c.parentChunkText || c.text || '').trim();
-      return `[Chunk ID: ${c.id}] (Language: ${c.language})\n${content}`;
+      const engContent = (c.metadata as any)?.englishText ? `\n[Reference/English Content: ${(c.metadata as any).englishText}]` : '';
+      return `[Chunk ID: ${c.id}] (Language: ${c.language})\n${content}${engContent}`;
     })
     .join('\n\n---\n\n');
 }

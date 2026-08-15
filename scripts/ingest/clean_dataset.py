@@ -144,6 +144,7 @@ def clean_language_file(
             clean_entry = {
                 "id": stable_id,
                 "text": cleaned_text,
+                "english_text": record.get("english_text"),
                 "language": lang_code,
                 "query_context": query_ctx,
                 "source_lang": record.get("source_lang", "en"),

@@ -121,9 +121,14 @@ function computeLocalCrossEncoderScore(
     // C. Vector Cosine Base Score
     const baseVectorScore = candidate.rawScore !== undefined ? candidate.rawScore : 0.5;
 
-    // Cross-encoder combined weighted score [0.0 - 1.0]
-    // 40% Vector base + 35% Exact Word Match + 25% Subword/Matra N-Gram
-    const rawRerank = (baseVectorScore * 0.40) + (wordCoverage * 0.35) + (ngramCoverage * 0.25);
+    // Cross-encoder combined score:
+    // If same script (lexical overlap exists), combine vector + keyword coverage
+    // If cross-lingual (e.g. English query against Indic passage), scale multilingual vector score
+    const lexicalScore = (wordCoverage * 0.60) + (ngramCoverage * 0.40);
+    const rawRerank = lexicalScore > 0.05
+      ? (baseVectorScore * 0.45) + (lexicalScore * 0.55)
+      : Math.min(1.0, baseVectorScore * 1.65);
+
     const score = Math.round(Math.min(1.0, Math.max(0.0, rawRerank)) * 1000) / 1000;
 
     return {

@@ -49,6 +49,7 @@ export class MetadataAwareChunker implements ChunkingStrategy {
             sourceLang: record.source_lang || 'en',
             targetLang: record.target_lang || record.language,
             queryContext: queryContext,
+            englishText: (record as any).english_text || null,
             isSelected: record.is_selected ?? false,
             parentChunkId: null,
             hasQueryAnchor: !!queryContext,
