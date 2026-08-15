@@ -85,19 +85,19 @@ export function Hero() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.1fr] gap-16 items-start">
           {/* Left: headline + CTAs + stats */}
           <div>
+            {/* Devanagari accent — intentional bilingual label above the headline */}
+            <p className="text-[13px] text-[#878787] font-medium mb-3 tracking-wide" style={{ fontFamily: "'IBM Plex Sans Devanagari', sans-serif" }}>
+              सुनिए
+            </p>
+
             <h1 className="text-[42px] sm:text-[54px] font-semibold text-white leading-[1.1] tracking-tight mb-5">
-              The voice-enabled RAG
+              Ask a question out loud,
               <br className="hidden sm:block" />
-              system for teams
-              <br className="hidden sm:block" />
-              and agents.
+              in your language.
             </h1>
 
             <p className="text-[15px] text-[#878787] leading-relaxed max-w-[460px] mb-8">
-              VaaniRAG captures spoken queries via Sarvam AI STT, retrieves relevant
-              context from MS&nbsp;MARCO-XI passages using hybrid pgvector&nbsp;+&nbsp;BM25
-              search, and returns strictly grounded, citation-backed answers
-              in under&nbsp;200ms — end to end.
+              Get an answer pulled straight from the source — no typing required.
             </p>
 
             <div className="flex flex-wrap items-center gap-3 mb-14">
@@ -105,7 +105,7 @@ export function Hero() {
                 href="/app"
                 className="inline-flex items-center gap-2 text-[13px] font-medium text-[#0a0a0a] bg-white hover:bg-[#e5e5e5] transition-colors px-4 py-2 rounded-md"
               >
-                Try it live
+                Try it — speak a question
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
               <a
@@ -121,10 +121,10 @@ export function Hero() {
 
             {/* Stats row */}
             <div className="flex flex-wrap items-start gap-10 border-t border-[#1f1f1f] pt-8">
-              <Stat value="&lt; 200ms" label="Target pipeline latency" />
-              <Stat value="3"         label="Chunking strategies" />
-              <Stat value="100%"      label="Grounded — no hallucinations" />
-              <Stat value="MS MARCO"  label="Indian language corpus" />
+              <Stat value="< 200ms"    label="Target pipeline latency" />
+              <Stat value="3"          label="Chunking strategies" />
+              <Stat value="100%"       label="Grounded — no hallucinations" />
+              <Stat value="MS MARCO-XI" label="Indian language corpus" />
             </div>
           </div>
 
