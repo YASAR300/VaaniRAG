@@ -32,7 +32,7 @@ import {
 // Default config values
 export const DEFAULT_STRATEGY: StrategyType = (process.env.RETRIEVAL_STRATEGY as StrategyType) || 'metadata';
 export const DEFAULT_TOP_K = 5;               // Single-digit per organizer guidance
-export const DEFAULT_SCORE_THRESHOLD = 0.38;   // Threshold separating relevant context from off-topic noise
+export const DEFAULT_SCORE_THRESHOLD = 0.48;   // Calibrated threshold separating relevant context from off-topic noise
 
 /**
  * Cache for local index files in memory for high-throughput sub-millisecond searches
